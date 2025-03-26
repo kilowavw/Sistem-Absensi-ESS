@@ -60,6 +60,9 @@
         <button onclick="exportToExcel()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg mt-4">
             <i class="fa-solid fa-file-excel"></i> Ekspor ke Excel
         </button>
+        <button onclick="exportDailyReport()" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg mt-4">
+            <i class="fa-solid fa-file-excel"></i> Ekspor ke Absen Harian
+        </button>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="p-6 bg-white text-gray-800 rounded-xl shadow-sm">
@@ -341,6 +344,183 @@
 
         // Panggil fungsi untuk mendapatkan lokasi berdasarkan IP
         fetchLocationByIP();
+
+
+        //Daily Report
+        function exportDailyReport() {
+            const workbook = new ExcelJS.Workbook();
+            workbook.creator = "Absensi App";
+            workbook.created = new Date();
+
+            const users = @json($users);
+            const today = new Date().toISOString().split("T")[0]; // Format YYYY-MM-DD
+
+            // ====== 1. CEK JIKA DATA KOSONG ====== //
+            const filteredUsers = users.map(user => ({
+                ...user,
+                attendances: user.attendances.filter(att => att.date === today) // Ambil hanya data hari ini
+            })).filter(user => user.attendances.length > 0); // Hanya user yang punya absensi hari ini
+
+            if (filteredUsers.length === 0) {
+                alert("Tidak ada data absensi untuk hari ini.");
+                return;
+            }
+
+            const worksheet = workbook.addWorksheet("Daily Report");
+
+            // ====== 2. JUDUL HEADER ====== //
+            worksheet.mergeCells("A1:E1");
+            const titleCell = worksheet.getCell("A1");
+            titleCell.value = `Daily Report - ${today}`;
+            titleCell.font = {
+                size: 16,
+                bold: true,
+                color: {
+                    argb: "FFFFFF"
+                }
+            };
+            titleCell.fill = {
+                type: "pattern",
+                pattern: "solid",
+                fgColor: {
+                    argb: "4CAF50"
+                }
+            };
+            titleCell.alignment = {
+                horizontal: "center",
+                vertical: "middle"
+            };
+
+            // ====== 3. HEADER TABEL ====== //
+            const headerRow = worksheet.addRow(["Nama", "Jam Masuk", "Jam Keluar", "Total Waktu", "Aktivitas"]);
+            headerRow.eachCell(cell => {
+                cell.font = {
+                    bold: true,
+                    color: {
+                        argb: "FFFFFF"
+                    },
+                    size: 12
+                };
+                cell.fill = {
+                    type: "pattern",
+                    pattern: "solid",
+                    fgColor: {
+                        argb: "2196F3"
+                    }
+                };
+                cell.alignment = {
+                    horizontal: "center",
+                    vertical: "middle",
+                    wrapText: true
+                };
+                cell.border = {
+                    top: {
+                        style: "thin"
+                    },
+                    left: {
+                        style: "thin"
+                    },
+                    bottom: {
+                        style: "thin"
+                    },
+                    right: {
+                        style: "thin"
+                    }
+                };
+            });
+
+            // ====== 4. ATUR LEBAR KOLOM ====== //
+            worksheet.columns = [{
+                    width: 20
+                }, // Nama
+                {
+                    width: 10
+                }, // Jam Masuk
+                {
+                    width: 10
+                }, // Jam Keluar
+                {
+                    width: 12
+                }, // Total Waktu
+                {
+                    width: 30
+                } // Aktivitas
+            ];
+
+            // ====== 5. ISI DATA ABSENSI ====== //
+            filteredUsers.forEach(user => {
+                user.attendances.forEach(attendance => {
+                    const clockIn = attendance.clock_in ? new Date(attendance.clock_in) : null;
+                    const clockOut = attendance.clock_out ? new Date(attendance.clock_out) : null;
+
+                    let totalTime = "-";
+                    if (clockIn && clockOut) {
+                        const diffMs = clockOut - clockIn;
+                        totalTime = new Date(diffMs).toISOString().substr(11, 8);
+                    }
+
+                    const row = worksheet.addRow([
+                        user.name,
+                        clockIn ? clockIn.toLocaleTimeString() : '-',
+                        clockOut ? clockOut.toLocaleTimeString() : '-',
+                        totalTime,
+                        attendance.aktivitas || "-"
+                    ]);
+
+                    // ====== 6. STYLING ISI DATA ====== //
+                    row.eachCell((cell, colNumber) => {
+                        cell.border = {
+                            top: {
+                                style: "thin"
+                            },
+                            left: {
+                                style: "thin"
+                            },
+                            bottom: {
+                                style: "thin"
+                            },
+                            right: {
+                                style: "thin"
+                            }
+                        };
+                        cell.alignment = {
+                            horizontal: "center",
+                            vertical: "middle",
+                            wrapText: true
+                        };
+
+                        // Warna sel bergantian (Zebra Stripes)
+                        if (row.number % 2 === 0) {
+                            cell.fill = {
+                                type: "pattern",
+                                pattern: "solid",
+                                fgColor: {
+                                    argb: "F9FAFB"
+                                }
+                            };
+                        }
+                    });
+                });
+            });
+
+            // ====== 7. AUTO-FIT TINGGI BARIS ====== //
+            worksheet.eachRow(row => {
+                row.height = 25;
+            });
+
+            // ====== 8. FREEZE HEADER ====== //
+            worksheet.views = [{
+                state: "frozen",
+                ySplit: 2
+            }];
+
+            // ====== 9. SIMPAN FILE EXCEL ====== //
+            workbook.xlsx.writeBuffer().then(buffer => {
+                saveAs(new Blob([buffer], {
+                    type: "application/octet-stream"
+                }), `Daily_Report_${today}.xlsx`);
+            });
+        }
     </script>
 
 
