@@ -53,7 +53,7 @@
 
         <!-- Jam Real-Time -->
         <div class="text-center text-xl font-semibold text-gray-800 mb-4">
-            <span id="realTimeClock">00:00:00</span> WI
+            <span id="realTimeClock">00:00:00</span> WIB
         </div>
 
         <h2 class="text-3xl font-semibold text-gray-800 mb-6 text-center">Dashboard Admin</h2>
